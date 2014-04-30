@@ -1,0 +1,32 @@
+{
+    "name": "bootstrap-select2",
+    "description": "Utility project to merge original select2 code & bootstrap 3 styles into single file",
+    "version": "0.0.1",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/InWayOpenSource/bootstrap-select2.git"
+    },
+    "style": "dist/css/bootstrap-select2.css",
+    "keywords": [
+        "css",
+        "less",
+        "js"
+    ],
+    "devDependencies": {
+        "grunt": "~0.4",
+        "grunt-sed": "~0.1",
+        "grunt-exec": "~0.4",
+        "grunt-banner": "~0.2",
+        "grunt-contrib-jshint": "~0.1",
+        "grunt-contrib-uglify": "git://github.com/jharding/grunt-contrib-uglify.git#support-enclose-option",
+        "grunt-contrib-less": "~0.8.0",
+        "grunt-contrib-copy": "~0.5",
+        "grunt-contrib-clean": "~0.4.0"
+    },
+    "license": "Apache",
+    "author": {
+        "name": "Sebastian Podjasek",
+        "email": "sebastian@podjasek.pl",
+        "url": "http://podjasek.pl"
+    }
+}
