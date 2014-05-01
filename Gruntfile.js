@@ -20,7 +20,6 @@ module.exports = function(grunt) {
     uglify: {
       options: {
         banner: '<%= banner %>',
-        //enclose: { 'window.jQuery': '$' }
       },
       js: {
         options: {
@@ -29,7 +28,7 @@ module.exports = function(grunt) {
           compress: false
         },
         src: jsFiles,
-        dest: '<%= buildDir %>/bootstrap-select2.js'
+        dest: '<%= buildDir %>/js/bootstrap-select2.js'
       },
       jsmin: {
         options: {
@@ -37,7 +36,7 @@ module.exports = function(grunt) {
           compress: true
         },
         src: jsFiles,
-        dest: '<%= buildDir %>/bootstrap-select2.min.js'
+        dest: '<%= buildDir %>/js/bootstrap-select2.min.js'
       }
     },
 
@@ -46,8 +45,19 @@ module.exports = function(grunt) {
         expand: true,
         cwd: 'src_select2/',
         src: 'select2_locale_*.js',
-        dest: 'dist/',
+        dest: '<%= buildDir %>/js/',
         rename: function(dest, src) { return dest + 'bootstrap_' + src }
+      },
+      s2css: {
+        expand: true,
+        cwd: 'src_select2/',
+        src: 'select2.css',
+        dest: 'less/',
+        options: {
+          process: function(content, src) {
+            return content.replace(/url\('(.*?)'\)/g, "url('../images/bootstrap_$1')");
+          }
+        }
       },
       css: {
         expand: true,
@@ -59,6 +69,13 @@ module.exports = function(grunt) {
             return content.replace(new RegExp('\.\.\/components\/bootstrap/less(.*?)(".*)', 'g'), "./bootstrap$1.less$2");
           }
         }
+      },
+      images: {
+        expand: true,
+        cwd: 'src_select2/',
+        src: ['select2*.gif', 'select2*.png'],
+        dest: '<%= buildDir %>/images/',
+        rename: function(dest, src) { return dest + 'bootstrap_' + src }
       },
       less: {
         expand: true,
@@ -74,7 +91,7 @@ module.exports = function(grunt) {
           strictMath: true
         },
         files: {
-          'dist/<%= pkg.name %>.css': 'less/build.less',
+          'less/<%= pkg.name %>.css': 'less/build.less',
         }
       },
       minify: {
@@ -83,8 +100,19 @@ module.exports = function(grunt) {
           report: 'min'
         },
         files: {
-          'dist/<%= pkg.name %>.min.css': 'dist/<%= pkg.name %>.css',
+          '<%= buildDir %>/css/<%= pkg.name %>.min.css': '<%= buildDir %>/css/<%= pkg.name %>.css',
         }
+      }
+    },
+
+    concat: {
+      options: {
+        stripBanners: true,
+        banner: '<%= banner %>'
+      },
+      dist: {
+        src: ['less/select2.css', 'less/<%= pkg.name %>.css'],
+        dest: '<%= buildDir %>/css/<%= pkg.name %>.css'
       }
     },
 
@@ -100,22 +128,20 @@ module.exports = function(grunt) {
       clone_b: {
         cmd: 'test ! -e src_bootstrap && git clone --depth 1 https://raw.github.com/InWayOpenSource/bootstrap.git src_bootstrap',
         exitCode: [0,1]
-      }
-    },
-    
-    usebanner: {
-      css: {
-        options: {
-          position: 'top',
-          banner: '<%= banner %>',
-          linebreak: true
-        },
-        src: ['dist/<%= pkg.name %>.css']
+      },
+      update_s2: {
+        cmd: 'cd src_select2 && git pull',
+      },
+      update_bs2css: {
+        cmd: 'cd src_bs2css && git pull',
+      },
+      update_b: {
+        cmd: 'cd src_bootstrap && git pull',
       }
     },
 
     clean: {
-      boostrap: 'less',
+      less: ['less'],
       src: ['src_bs2css', 'src_select2', 'src_bootstrap']
     },
   });
@@ -124,17 +150,22 @@ module.exports = function(grunt) {
   // -------
 
   grunt.registerTask('default', 'build');
-  grunt.registerTask('css', 'less');
+  
+  grunt.registerTask('js', ['uglify']);
+  grunt.registerTask('css', ['less:compile', 'concat', 'less:minify']);
   grunt.registerTask('banner', 'usebanner');
-  grunt.registerTask('build', ['exec:clone_s2', 'exec:clone_bs2css', 'exec:clone_b', 'copy', 'uglify', 'css', 'banner']);
+  grunt.registerTask('clone', ['exec:clone_s2', 'exec:clone_bs2css', 'exec:clone_b']);
+  grunt.registerTask('update', ['exec:update_s2', 'exec:update_bs2css', 'exec:update_b']);
+  
+  grunt.registerTask('build', ['clone', 'update', 'copy', 'js', 'css']);
 
   // load tasks
   // ----------
 
   grunt.loadNpmTasks('grunt-sed');
   grunt.loadNpmTasks('grunt-exec');
-  grunt.loadNpmTasks('grunt-banner');
   grunt.loadNpmTasks('grunt-contrib-clean');
+  grunt.loadNpmTasks('grunt-contrib-concat');
   grunt.loadNpmTasks('grunt-contrib-copy');
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-less');
