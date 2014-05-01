@@ -35,3 +35,13 @@ Removes everything except `/dist`
 
 In case of emergency - break the glass, then - rerun `npm install`.
 
+## Dependencies
+
+* [select2](https://github.com/InWayOpenSource/select2) - originally by [@ivaynberg](https://github.com/ivaynberg/select2) under [the Apache 2.0 license](https://github.com/ivaynberg/select2/blob/master/LICENSE)
+* [bootstrap-select2-css](https://github.com/InWayOpenSource/bootstrap-select2-css) - originally by [@t0m](https://github.com/t0m/select2-bootstrap-css) under [the MIT license](https://github.com/t0m/select2-bootstrap-css/blob/master/LICENSE)
+
+## License
+
+Code released under [the Apache 2.0 license](LICENSE).
+
+
