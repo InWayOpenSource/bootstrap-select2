@@ -1,5 +1,5 @@
 /*!
- * bootstrap-select2.js 0.0.1
+ * bootstrap-select2.js 0.0.2
  * https://github.com/InWayOpenSource/bootstrap-select2.git
  * Copyright 2014 InWay.pro and other contributors
  * original scripts developers Igor Vaynberg (for select2), t0m & fk (for select2-bootstrap-css)
