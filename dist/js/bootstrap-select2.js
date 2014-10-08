@@ -888,7 +888,28 @@
         "ȥ": "z",
         "ɀ": "z",
         "ⱬ": "z",
-        "ꝣ": "z"
+        "ꝣ": "z",
+        "Ά": "Α",
+        "Έ": "Ε",
+        "Ή": "Η",
+        "Ί": "Ι",
+        "Ϊ": "Ι",
+        "Ό": "Ο",
+        "Ύ": "Υ",
+        "Ϋ": "Υ",
+        "Ώ": "Ω",
+        "ά": "α",
+        "έ": "ε",
+        "ή": "η",
+        "ί": "ι",
+        "ϊ": "ι",
+        "ΐ": "ι",
+        "ό": "ο",
+        "ύ": "υ",
+        "ϋ": "υ",
+        "ΰ": "υ",
+        "ω": "ω",
+        "ς": "σ"
     };
     $document = $(document);
     nextUid = function() {
@@ -959,10 +980,6 @@
             }
         });
     }
-    $document.on("mousemove", function(e) {
-        lastMousePosition.x = e.pageX;
-        lastMousePosition.y = e.pageY;
-    });
     function installFilteredMouseMove(element) {
         element.on("mousemove", function(e) {
             var lastpos = lastMousePosition;
@@ -1058,19 +1075,19 @@
     }
     function syncCssClasses(dest, src, adapter) {
         var classes, replacements = [], adapted;
-        classes = dest.attr("class");
+        classes = $.trim(dest.attr("class"));
         if (classes) {
             classes = "" + classes;
-            $(classes.split(" ")).each2(function() {
+            $(classes.split(/\s+/)).each2(function() {
                 if (this.indexOf("select2-") === 0) {
                     replacements.push(this);
                 }
             });
         }
-        classes = src.attr("class");
+        classes = $.trim(src.attr("class"));
         if (classes) {
             classes = "" + classes;
-            $(classes.split(" ")).each2(function() {
+            $(classes.split(/\s+/)).each2(function() {
                 if (this.indexOf("select2-") !== 0) {
                     adapted = adapter(this);
                     if (adapted) {
@@ -1135,7 +1152,16 @@
                     dataType: options.dataType,
                     data: data,
                     success: function(data) {
-                        var results = options.results(data, query.page);
+                        var results = options.results(data, query.page, query);
+                        query.callback(results);
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        var results = {
+                            hasError: true,
+                            jqXHR: jqXHR,
+                            textStatus: textStatus,
+                            errorThrown: errorThrown
+                        };
                         query.callback(results);
                     }
                 });
@@ -1210,9 +1236,9 @@
             var t = query.term, filtered = {
                 results: []
             };
-            var result = $(isFunc ? data(query) : data);
+            var result = isFunc ? data(query) : data;
             if ($.isArray(result)) {
-                $(isFunc ? data() : data).each(function() {
+                $(result).each(function() {
                     var isObject = this.text !== undefined, text = isObject ? this.text : this;
                     if (t === "" || query.matcher(t, text)) {
                         filtered.results.push(isObject ? this : {
@@ -1231,10 +1257,10 @@
         if (typeof formatter === "string") return true;
         throw new Error(formatterName + " must be a string, function, or falsy value");
     }
-    function evaluate(val) {
+    function evaluate(val, context) {
         if ($.isFunction(val)) {
-            var args = Array.prototype.slice.call(arguments, 1);
-            return val.apply(null, args);
+            var args = Array.prototype.slice.call(arguments, 2);
+            return val.apply(context, args);
         }
         return val;
     }
@@ -1280,7 +1306,7 @@
     }
     function cleanupJQueryElements() {
         var self = this;
-        Array.prototype.forEach.call(arguments, function(element) {
+        $.each(arguments, function(i, element) {
             self[element].remove();
             self[element] = null;
         });
@@ -1308,10 +1334,13 @@
                 opts.element.data("select2").destroy();
             }
             this.container = this.createContainer();
-            this.liveRegion = $("<span>", {
-                role: "status",
-                "aria-live": "polite"
-            }).addClass("select2-hidden-accessible").appendTo(document.body);
+            this.liveRegion = $(".select2-hidden-accessible");
+            if (this.liveRegion.length == 0) {
+                this.liveRegion = $("<span>", {
+                    role: "status",
+                    "aria-live": "polite"
+                }).addClass("select2-hidden-accessible").appendTo(document.body);
+            }
             this.containerId = "s2id_" + (opts.element.attr("id") || "autogen" + nextUid());
             this.containerEventName = this.containerId.replace(/([.])/g, "_").replace(/([;&,\-\.\+\*\~':"\!\^#$%@\[\]\(\)=>\|])/g, "\\$1");
             this.container.attr("id", this.containerId);
@@ -1319,14 +1348,14 @@
             this.body = $("body");
             syncCssClasses(this.container, this.opts.element, this.opts.adaptContainerCssClass);
             this.container.attr("style", opts.element.attr("style"));
-            this.container.css(evaluate(opts.containerCss));
-            this.container.addClass(evaluate(opts.containerCssClass));
+            this.container.css(evaluate(opts.containerCss, this.opts.element));
+            this.container.addClass(evaluate(opts.containerCssClass, this.opts.element));
             this.elementTabIndex = this.opts.element.attr("tabindex");
             this.opts.element.data("select2", this).attr("tabindex", "-1").before(this.container).on("click.select2", killEvent);
             this.container.data("select2", this);
             this.dropdown = this.container.find(".select2-drop");
             syncCssClasses(this.dropdown, this.opts.element, this.opts.adaptDropdownCssClass);
-            this.dropdown.addClass(evaluate(opts.dropdownCssClass));
+            this.dropdown.addClass(evaluate(opts.dropdownCssClass, this.opts.element));
             this.dropdown.data("select2", this);
             this.dropdown.on("click", killEvent);
             this.results = results = this.container.find(resultsSelector);
@@ -1408,12 +1437,20 @@
             this.search.attr("placeholder", opts.searchInputPlaceholder);
         },
         destroy: function() {
-            var element = this.opts.element, select2 = element.data("select2");
+            var element = this.opts.element, select2 = element.data("select2"), self = this;
             this.close();
+            if (element.length && element[0].detachEvent && self._sync) {
+                element.each(function() {
+                    if (self._sync) {
+                        this.detachEvent("onpropertychange", self._sync);
+                    }
+                });
+            }
             if (this.propertyObserver) {
                 this.propertyObserver.disconnect();
                 this.propertyObserver = null;
             }
+            this._sync = null;
             if (select2 !== undefined) {
                 select2.container.remove();
                 select2.liveRegion.remove();
@@ -1468,6 +1505,7 @@
                     populate = function(results, container, depth) {
                         var i, l, result, selectable, disabled, compound, node, label, innerContainer, formatted;
                         results = opts.sortResults(results, container, query);
+                        var nodes = [];
                         for (i = 0, l = results.length; i < l; i = i + 1) {
                             result = results[i];
                             disabled = result.disabled === true;
@@ -1501,8 +1539,9 @@
                                 node.append(innerContainer);
                             }
                             node.data("select2-data", result);
-                            container.append(node);
+                            nodes.push(node[0]);
                         }
+                        container.append(nodes);
                         liveRegion.text(opts.formatMatches(results.length));
                     };
                     populate(results, container, 0);
@@ -1617,27 +1656,31 @@
             return opts;
         },
         monitorSource: function() {
-            var el = this.opts.element, sync, observer;
+            var el = this.opts.element, observer, self = this;
             el.on("change.select2", this.bind(function(e) {
                 if (this.opts.element.data("select2-change-triggered") !== true) {
                     this.initSelection();
                 }
             }));
-            sync = this.bind(function() {
+            this._sync = this.bind(function() {
                 var disabled = el.prop("disabled");
                 if (disabled === undefined) disabled = false;
                 this.enable(!disabled);
                 var readonly = el.prop("readonly");
                 if (readonly === undefined) readonly = false;
                 this.readonly(readonly);
-                syncCssClasses(this.container, this.opts.element, this.opts.adaptContainerCssClass);
-                this.container.addClass(evaluate(this.opts.containerCssClass));
-                syncCssClasses(this.dropdown, this.opts.element, this.opts.adaptDropdownCssClass);
-                this.dropdown.addClass(evaluate(this.opts.dropdownCssClass));
+                if (this.container) {
+                    syncCssClasses(this.container, this.opts.element, this.opts.adaptContainerCssClass);
+                    this.container.addClass(evaluate(this.opts.containerCssClass, this.opts.element));
+                }
+                if (this.dropdown) {
+                    syncCssClasses(this.dropdown, this.opts.element, this.opts.adaptDropdownCssClass);
+                    this.dropdown.addClass(evaluate(this.opts.dropdownCssClass, this.opts.element));
+                }
             });
             if (el.length && el[0].attachEvent) {
                 el.each(function() {
-                    this.attachEvent("onpropertychange", sync);
+                    this.attachEvent("onpropertychange", self._sync);
                 });
             }
             observer = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
@@ -1647,7 +1690,7 @@
                     this.propertyObserver = null;
                 }
                 this.propertyObserver = new observer(function(mutations) {
-                    mutations.forEach(sync);
+                    $.each(mutations, self._sync);
                 });
                 this.propertyObserver.observe(el.get(0), {
                     attributes: true,
@@ -1658,7 +1701,8 @@
         triggerSelect: function(data) {
             var evt = $.Event("select2-selecting", {
                 val: this.id(data),
-                object: data
+                object: data,
+                choice: data
             });
             this.opts.element.trigger(evt);
             return !evt.isDefaultPrevented();
@@ -1704,10 +1748,14 @@
             this.enableInterface();
         },
         opened: function() {
-            return this.container.hasClass("select2-dropdown-open");
+            return this.container ? this.container.hasClass("select2-dropdown-open") : false;
         },
         positionDropdown: function() {
-            var $dropdown = this.dropdown, offset = this.container.offset(), height = this.container.outerHeight(false), width = this.container.outerWidth(false), dropHeight = $dropdown.outerHeight(false), $window = $(window), windowWidth = $window.width(), windowHeight = $window.height(), viewPortRight = $window.scrollLeft() + windowWidth, viewportBottom = $window.scrollTop() + windowHeight, dropTop = offset.top + height, dropLeft = offset.left, enoughRoomBelow = dropTop + dropHeight <= viewportBottom, enoughRoomAbove = offset.top - dropHeight >= $window.scrollTop(), dropWidth = $dropdown.outerWidth(false), enoughRoomOnRight = dropLeft + dropWidth <= viewPortRight, aboveNow = $dropdown.hasClass("select2-drop-above"), bodyOffset, above, changeDirection, css, resultsListNode;
+            var $dropdown = this.dropdown, container = this.container, offset = container.offset(), height = container.outerHeight(false), width = container.outerWidth(false), dropHeight = $dropdown.outerHeight(false), $window = $(window), windowWidth = $window.width(), windowHeight = $window.height(), viewPortRight = $window.scrollLeft() + windowWidth, viewportBottom = $window.scrollTop() + windowHeight, dropTop = offset.top + height, dropLeft = offset.left, enoughRoomBelow = dropTop + dropHeight <= viewportBottom, enoughRoomAbove = offset.top - dropHeight >= $window.scrollTop(), dropWidth = $dropdown.outerWidth(false), enoughRoomOnRight = function() {
+                return dropLeft + dropWidth <= viewPortRight;
+            }, enoughRoomOnLeft = function() {
+                return offset.left + viewPortRight + container.outerWidth(false) > dropWidth;
+            }, aboveNow = $dropdown.hasClass("select2-drop-above"), bodyOffset, above, changeDirection, css, resultsListNode;
             if (aboveNow) {
                 above = true;
                 if (!enoughRoomAbove && enoughRoomBelow) {
@@ -1732,7 +1780,6 @@
                 dropTop = offset.top + height;
                 dropLeft = offset.left;
                 dropWidth = $dropdown.outerWidth(false);
-                enoughRoomOnRight = dropLeft + dropWidth <= viewPortRight;
                 $dropdown.show();
                 this.focusSearch();
             }
@@ -1743,7 +1790,6 @@
                 dropWidth = $dropdown.outerWidth(false) + (resultsListNode.scrollHeight === resultsListNode.clientHeight ? 0 : scrollBarDimensions.width);
                 dropWidth > width ? width = dropWidth : dropWidth = width;
                 dropHeight = $dropdown.outerHeight(false);
-                enoughRoomOnRight = dropLeft + dropWidth <= viewPortRight;
             } else {
                 this.container.removeClass("select2-drop-auto-width");
             }
@@ -1752,7 +1798,7 @@
                 dropTop -= bodyOffset.top;
                 dropLeft -= bodyOffset.left;
             }
-            if (!enoughRoomOnRight) {
+            if (!enoughRoomOnRight() && enoughRoomOnLeft()) {
                 dropLeft = offset.left + this.container.outerWidth(false) - dropWidth;
             }
             css = {
@@ -1770,7 +1816,7 @@
                 this.container.removeClass("select2-drop-above");
                 $dropdown.removeClass("select2-drop-above");
             }
-            css = $.extend(css, evaluate(this.opts.dropdownCss));
+            css = $.extend(css, evaluate(this.opts.dropdownCss, this.opts.element));
             $dropdown.css(css);
         },
         shouldOpen: function() {
@@ -1788,6 +1834,10 @@
         open: function() {
             if (!this.shouldOpen()) return false;
             this.opening();
+            $document.on("mousemove.select2Event", function(e) {
+                lastMousePosition.x = e.pageX;
+                lastMousePosition.y = e.pageY;
+            });
             return true;
         },
         opening: function() {
@@ -1848,6 +1898,7 @@
             this.dropdown.hide();
             this.container.removeClass("select2-dropdown-open").removeClass("select2-container-active");
             this.results.empty();
+            $document.off("mousemove.select2Event");
             this.clearSearch();
             this.search.removeClass("select2-active");
             this.opts.element.trigger($.Event("select2-close"));
@@ -1859,10 +1910,10 @@
         },
         clearSearch: function() {},
         getMaximumSelectionSize: function() {
-            return evaluate(this.opts.maximumSelectionSize);
+            return evaluate(this.opts.maximumSelectionSize, this.opts.element);
         },
         ensureHighlightVisible: function() {
-            var results = this.results, children, index, child, hb, rb, y, more;
+            var results = this.results, children, index, child, hb, rb, y, more, topOffset;
             index = this.highlight();
             if (index < 0) return;
             if (index == 0) {
@@ -1871,18 +1922,19 @@
             }
             children = this.findHighlightableChoices().find(".select2-result-label");
             child = $(children[index]);
-            hb = child.offset().top + child.outerHeight(true);
+            topOffset = (child.offset() || {}).top || 0;
+            hb = topOffset + child.outerHeight(true);
             if (index === children.length - 1) {
                 more = results.find("li.select2-more-results");
                 if (more.length > 0) {
                     hb = more.offset().top + more.outerHeight(true);
                 }
             }
-            rb = results.offset().top + results.outerHeight(true);
+            rb = results.offset().top + results.outerHeight(false);
             if (hb > rb) {
                 results.scrollTop(results.scrollTop() + (hb - rb));
             }
-            y = child.offset().top - results.offset().top;
+            y = topOffset - results.offset().top;
             if (y < 0 && child.css("display") != "none") {
                 results.scrollTop(results.scrollTop() + y);
             }
@@ -1965,7 +2017,7 @@
                         });
                         self.postprocessResults(data, false, false);
                         if (data.more === true) {
-                            more.detach().appendTo(results).text(evaluate(self.opts.formatLoadMore, page + 1));
+                            more.detach().appendTo(results).html(self.opts.escapeMarkup(evaluate(self.opts.formatLoadMore, self.opts.element, page + 1)));
                             window.setTimeout(function() {
                                 self.loadMoreIfNeeded();
                             }, 10);
@@ -2009,13 +2061,13 @@
             if (maxSelSize >= 1) {
                 data = this.data();
                 if ($.isArray(data) && data.length >= maxSelSize && checkFormatter(opts.formatSelectionTooBig, "formatSelectionTooBig")) {
-                    render("<li class='select2-selection-limit'>" + evaluate(opts.formatSelectionTooBig, maxSelSize) + "</li>");
+                    render("<li class='select2-selection-limit'>" + evaluate(opts.formatSelectionTooBig, opts.element, maxSelSize) + "</li>");
                     return;
                 }
             }
             if (search.val().length < opts.minimumInputLength) {
                 if (checkFormatter(opts.formatInputTooShort, "formatInputTooShort")) {
-                    render("<li class='select2-no-results'>" + evaluate(opts.formatInputTooShort, search.val(), opts.minimumInputLength) + "</li>");
+                    render("<li class='select2-no-results'>" + evaluate(opts.formatInputTooShort, opts.element, search.val(), opts.minimumInputLength) + "</li>");
                 } else {
                     render("");
                 }
@@ -2024,14 +2076,14 @@
             }
             if (opts.maximumInputLength && search.val().length > opts.maximumInputLength) {
                 if (checkFormatter(opts.formatInputTooLong, "formatInputTooLong")) {
-                    render("<li class='select2-no-results'>" + evaluate(opts.formatInputTooLong, search.val(), opts.maximumInputLength) + "</li>");
+                    render("<li class='select2-no-results'>" + evaluate(opts.formatInputTooLong, opts.element, search.val(), opts.maximumInputLength) + "</li>");
                 } else {
                     render("");
                 }
                 return;
             }
             if (opts.formatSearching && this.findHighlightableChoices().length === 0) {
-                render("<li class='select2-searching'>" + evaluate(opts.formatSearching) + "</li>");
+                render("<li class='select2-searching'>" + evaluate(opts.formatSearching, opts.element) + "</li>");
             }
             search.addClass("select2-active");
             this.removeHighlight();
@@ -2055,6 +2107,10 @@
                         this.search.removeClass("select2-active");
                         return;
                     }
+                    if (data.hasError !== undefined && checkFormatter(opts.formatAjaxError, "formatAjaxError")) {
+                        render("<li class='select2-ajax-error'>" + evaluate(opts.formatAjaxError, opts.element, data.jqXHR, data.textStatus, data.errorThrown) + "</li>");
+                        return;
+                    }
                     this.context = data.context === undefined ? null : data.context;
                     if (this.opts.createSearchChoice && search.val() !== "") {
                         def = this.opts.createSearchChoice.call(self, search.val(), data.results);
@@ -2067,7 +2123,7 @@
                         }
                     }
                     if (data.results.length === 0 && checkFormatter(opts.formatNoMatches, "formatNoMatches")) {
-                        render("<li class='select2-no-results'>" + evaluate(opts.formatNoMatches, search.val()) + "</li>");
+                        render("<li class='select2-no-results'>" + evaluate(opts.formatNoMatches, opts.element, search.val()) + "</li>");
                         return;
                     }
                     results.empty();
@@ -2077,7 +2133,7 @@
                         context: null
                     });
                     if (data.more === true && checkFormatter(opts.formatLoadMore, "formatLoadMore")) {
-                        results.append("<li class='select2-more-results'>" + self.opts.escapeMarkup(evaluate(opts.formatLoadMore, this.resultsPage)) + "</li>");
+                        results.append("<li class='select2-more-results'>" + opts.escapeMarkup(evaluate(opts.formatLoadMore, opts.element, this.resultsPage)) + "</li>");
                         window.setTimeout(function() {
                             self.loadMoreIfNeeded();
                         }, 10);
@@ -2270,6 +2326,7 @@
             this.search.prev().text($("label[for='" + this.focusser.attr("id") + "']").text()).attr("for", this.search.attr("id"));
             this.search.on("keydown", this.bind(function(e) {
                 if (!this.isInterfaceEnabled()) return;
+                if (229 == e.keyCode) return;
                 if (e.which === KEY.PAGE_UP || e.which === KEY.PAGE_DOWN) {
                     killEvent(e);
                     return;
@@ -2705,13 +2762,14 @@
             this.searchContainer = this.container.find(".select2-search-field");
             this.selection = selection = this.container.find(selector);
             var _this = this;
-            this.selection.on("click", ".select2-search-choice:not(.select2-locked)", function(e) {
+            this.selection.on("click", ".select2-container:not(.select2-container-disabled) .select2-search-choice:not(.select2-locked)", function(e) {
                 _this.search[0].focus();
                 _this.selectChoice($(this));
             });
             this.search.attr("id", "s2id_autogen" + nextUid());
             this.search.prev().text($("label[for='" + this.opts.element.attr("id") + "']").text()).attr("for", this.search.attr("id"));
             this.search.on("input paste", this.bind(function() {
+                if (this.search.attr("placeholder") && this.search.val().length == 0) return;
                 if (!this.isInterfaceEnabled()) return;
                 if (!this.opened()) {
                     this.open();
@@ -2932,7 +2990,7 @@
             }
         },
         onSelect: function(data, options) {
-            if (!this.triggerSelect(data)) {
+            if (!this.triggerSelect(data) || data.text === "") {
                 return;
             }
             this.addSelectedChoice(data);
@@ -3059,7 +3117,7 @@
             if (!this.opts.createSearchChoice && !choices.filter(".select2-result:not(.select2-selected)").length > 0) {
                 if (!data || data && !data.more && this.results.find(".select2-no-results").length === 0) {
                     if (checkFormatter(self.opts.formatNoMatches, "formatNoMatches")) {
-                        this.results.append("<li class='select2-no-results'>" + evaluate(self.opts.formatNoMatches, self.search.val()) + "</li>");
+                        this.results.append("<li class='select2-no-results'>" + evaluate(self.opts.formatNoMatches, self.opts.element, self.search.val()) + "</li>");
                     }
                 }
             }
@@ -3262,11 +3320,11 @@
         dropdownCssClass: "",
         formatResult: function(result, container, query, escapeMarkup) {
             var markup = [];
-            markMatch(result.text, query.term, markup, escapeMarkup);
+            markMatch(this.text(result), query.term, markup, escapeMarkup);
             return markup.join("");
         },
         formatSelection: function(data, container, escapeMarkup) {
-            return data ? escapeMarkup(data.text) : undefined;
+            return data ? escapeMarkup(this.text(data)) : undefined;
         },
         sortResults: function(results, container, query) {
             return results;
@@ -3277,35 +3335,23 @@
         formatSelectionCssClass: function(data, container) {
             return undefined;
         },
-        formatMatches: function(matches) {
-            return matches + " results are available, use up and down arrow keys to navigate.";
-        },
-        formatNoMatches: function() {
-            return "No matches found";
-        },
-        formatInputTooShort: function(input, min) {
-            var n = min - input.length;
-            return "Please enter " + n + " or more character" + (n == 1 ? "" : "s");
-        },
-        formatInputTooLong: function(input, max) {
-            var n = input.length - max;
-            return "Please delete " + n + " character" + (n == 1 ? "" : "s");
-        },
-        formatSelectionTooBig: function(limit) {
-            return "You can only select " + limit + " item" + (limit == 1 ? "" : "s");
-        },
-        formatLoadMore: function(pageNumber) {
-            return "Loading more results…";
-        },
-        formatSearching: function() {
-            return "Searching…";
-        },
         minimumResultsForSearch: 0,
         minimumInputLength: 0,
         maximumInputLength: null,
         maximumSelectionSize: 0,
         id: function(e) {
             return e == undefined ? null : e.id;
+        },
+        text: function(e) {
+            if (e && this.data && this.data.text) {
+                if ($.isFunction(this.data.text)) {
+                    return this.data.text(e);
+                } else {
+                    return e[this.data.text];
+                }
+            } else {
+                return e.text;
+            }
         },
         matcher: function(term, text) {
             return stripDiacritics("" + text).toUpperCase().indexOf(stripDiacritics("" + term).toUpperCase()) >= 0;
@@ -3338,6 +3384,39 @@
             return true;
         }
     };
+    $.fn.select2.locales = [];
+    $.fn.select2.locales["en"] = {
+        formatMatches: function(matches) {
+            if (matches === 1) {
+                return "One result is available, press enter to select it.";
+            }
+            return matches + " results are available, use up and down arrow keys to navigate.";
+        },
+        formatNoMatches: function() {
+            return "No matches found";
+        },
+        formatAjaxError: function(jqXHR, textStatus, errorThrown) {
+            return "Loading failed";
+        },
+        formatInputTooShort: function(input, min) {
+            var n = min - input.length;
+            return "Please enter " + n + " or more character" + (n == 1 ? "" : "s");
+        },
+        formatInputTooLong: function(input, max) {
+            var n = input.length - max;
+            return "Please delete " + n + " character" + (n == 1 ? "" : "s");
+        },
+        formatSelectionTooBig: function(limit) {
+            return "You can only select " + limit + " item" + (limit == 1 ? "" : "s");
+        },
+        formatLoadMore: function(pageNumber) {
+            return "Loading more results…";
+        },
+        formatSearching: function() {
+            return "Searching…";
+        }
+    };
+    $.extend($.fn.select2.defaults, $.fn.select2.locales["en"]);
     $.fn.select2.ajaxDefaults = {
         transport: $.ajax,
         params: {
