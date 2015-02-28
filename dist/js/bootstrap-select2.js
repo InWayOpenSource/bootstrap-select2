@@ -23,7 +23,7 @@
     if (window.Select2 !== undefined) {
         return;
     }
-    var KEY, AbstractSelect2, SingleSelect2, MultiSelect2, nextUid, sizer, lastMousePosition = {
+    var AbstractSelect2, SingleSelect2, MultiSelect2, nextUid, sizer, lastMousePosition = {
         x: 0,
         y: 0
     }, $document, scrollBarDimensions, KEY = {
@@ -939,7 +939,7 @@
     }
     function measureScrollbar() {
         var $template = $(MEASURE_SCROLLBAR_TEMPLATE);
-        $template.appendTo("body");
+        $template.appendTo(document.body);
         var dim = {
             width: $template.width() - $template[0].clientWidth,
             height: $template.height() - $template[0].clientHeight
@@ -955,11 +955,11 @@
         if (b.constructor === String) return b + "" === a + "";
         return false;
     }
-    function splitVal(string, separator) {
+    function splitVal(string, separator, transform) {
         var val, i, l;
         if (string === null || string.length < 1) return [];
         val = string.split(separator);
-        for (i = 0, l = val.length; i < l; i = i + 1) val[i] = $.trim(val[i]);
+        for (i = 0, l = val.length; i < l; i = i + 1) val[i] = transform(val[i]);
         return val;
     }
     function getSideBorderPadding(element) {
@@ -1068,7 +1068,7 @@
                 whiteSpace: "nowrap"
             });
             sizer.attr("class", "select2-sizer");
-            $("body").append(sizer);
+            $(document.body).append(sizer);
         }
         sizer.text(e.val());
         return sizer.width();
@@ -1345,7 +1345,7 @@
             this.containerEventName = this.containerId.replace(/([.])/g, "_").replace(/([;&,\-\.\+\*\~':"\!\^#$%@\[\]\(\)=>\|])/g, "\\$1");
             this.container.attr("id", this.containerId);
             this.container.attr("title", opts.element.attr("title"));
-            this.body = $("body");
+            this.body = $(document.body);
             syncCssClasses(this.container, this.opts.element, this.opts.adaptContainerCssClass);
             this.container.attr("style", opts.element.attr("style"));
             this.container.css(evaluate(opts.containerCss, this.opts.element));
@@ -1416,7 +1416,7 @@
             this.dropdown.on("click mouseup mousedown touchstart touchend focusin", function(e) {
                 e.stopPropagation();
             });
-            this.nextSearchTerm = undefined;
+            this.lastSearchTerm = undefined;
             if ($.isFunction(this.opts.initSelection)) {
                 this.initSelection();
                 this.monitorSource();
@@ -1455,15 +1455,20 @@
                 select2.container.remove();
                 select2.liveRegion.remove();
                 select2.dropdown.remove();
-                element.removeClass("select2-offscreen").removeData("select2").off(".select2").prop("autofocus", this.autofocus || false);
-                if (this.elementTabIndex) {
-                    element.attr({
-                        tabindex: this.elementTabIndex
-                    });
+                element.removeData("select2").off(".select2");
+                if (!element.is("input[type='hidden']")) {
+                    element.show().prop("autofocus", this.autofocus || false);
+                    if (this.elementTabIndex) {
+                        element.attr({
+                            tabindex: this.elementTabIndex
+                        });
+                    } else {
+                        element.removeAttr("tabindex");
+                    }
+                    element.show();
                 } else {
-                    element.removeAttr("tabindex");
+                    element.css("display", "");
                 }
-                element.show();
             }
             cleanupJQueryElements.call(this, "container", "liveRegion", "dropdown", "results", "search");
         },
@@ -1619,7 +1624,7 @@
                         if (opts.initSelection === undefined) {
                             opts.initSelection = function(element, callback) {
                                 var data = [];
-                                $(splitVal(element.val(), opts.separator)).each(function() {
+                                $(splitVal(element.val(), opts.separator, opts.transformVal)).each(function() {
                                     var obj = {
                                         id: this,
                                         text: this
@@ -1806,10 +1811,11 @@
                 width: width
             };
             if (above) {
-                css.top = offset.top - dropHeight;
-                css.bottom = "auto";
                 this.container.addClass("select2-drop-above");
                 $dropdown.addClass("select2-drop-above");
+                dropHeight = $dropdown.outerHeight(false);
+                css.top = offset.top - dropHeight;
+                css.bottom = "auto";
             } else {
                 css.top = dropTop;
                 css.bottom = "auto";
@@ -1848,7 +1854,7 @@
                 this.dropdown.detach().appendTo(this.body);
             }
             mask = $("#select2-drop-mask");
-            if (mask.length == 0) {
+            if (mask.length === 0) {
                 mask = $(document.createElement("div"));
                 mask.attr("id", "select2-drop-mask").attr("class", "select2-drop-mask");
                 mask.hide();
@@ -1901,6 +1907,7 @@
             $document.off("mousemove.select2Event");
             this.clearSearch();
             this.search.removeClass("select2-active");
+            this.search.removeAttr("aria-activedescendant");
             this.opts.element.trigger($.Event("select2-close"));
         },
         externalSearch: function(term) {
@@ -1909,6 +1916,18 @@
             this.updateResults(false);
         },
         clearSearch: function() {},
+        prefillNextSearchTerm: function() {
+            if (this.search.val() !== "") {
+                return false;
+            }
+            var nextSearchTerm = this.opts.nextSearchTerm(this.data(), this.lastSearchTerm);
+            if (nextSearchTerm !== undefined) {
+                this.search.val(nextSearchTerm);
+                this.search.select();
+                return true;
+            }
+            return false;
+        },
         getMaximumSelectionSize: function() {
             return evaluate(this.opts.maximumSelectionSize, this.opts.element);
         },
@@ -2049,7 +2068,7 @@
                 if (results.find(".select2-no-results,.select2-selection-limit,.select2-searching").length) {
                     self.liveRegion.text(results.text());
                 } else {
-                    self.liveRegion.text(self.opts.formatMatches(results.find(".select2-result-selectable").length));
+                    self.liveRegion.text(self.opts.formatMatches(results.find('.select2-result-selectable:not(".select2-selected")').length));
                 }
             }
             function render(html) {
@@ -2124,6 +2143,7 @@
                     }
                     if (data.results.length === 0 && checkFormatter(opts.formatNoMatches, "formatNoMatches")) {
                         render("<li class='select2-no-results'>" + evaluate(opts.formatNoMatches, opts.element, search.val()) + "</li>");
+                        this.showSearch(search.val());
                         return;
                     }
                     results.empty();
@@ -2201,7 +2221,7 @@
                     return this.opts.element.outerWidth(false) === 0 ? "auto" : this.opts.element.outerWidth(false) + "px";
                 } else if (this.opts.width === "copy" || this.opts.width === "resolve") {
                     style = this.opts.element.attr("style");
-                    if (style !== undefined) {
+                    if (typeof style === "string") {
                         attrs = style.split(";");
                         for (i = 0, l = attrs.length; i < l; i = i + 1) {
                             attr = attrs[i].replace(/\s/g, "");
@@ -2260,12 +2280,7 @@
                     el.setSelectionRange(len, len);
                 }
             }
-            if (this.search.val() === "") {
-                if (this.nextSearchTerm != undefined) {
-                    this.search.val(this.nextSearchTerm);
-                    this.search.select();
-                }
-            }
+            this.prefillNextSearchTerm();
             this.focusser.prop("disabled", true).val("");
             this.updateResults(true);
             this.opts.element.trigger($.Event("select2-open"));
@@ -2318,6 +2333,9 @@
             this.search.attr("aria-owns", "select2-results-" + idSuffix);
             this.focusser.attr("id", "s2id_autogen" + idSuffix);
             elementLabel = $("label[for='" + this.opts.element.attr("id") + "']");
+            this.opts.element.focus(this.bind(function() {
+                this.focus();
+            }));
             this.focusser.prev().text(elementLabel.text()).attr("for", this.focusser.attr("id"));
             var originalTitle = this.opts.element.attr("title");
             this.opts.element.attr("title", originalTitle || elementLabel.text());
@@ -2358,7 +2376,7 @@
             this.search.on("blur", this.bind(function(e) {
                 if (document.activeElement === this.body.get(0)) {
                     window.setTimeout(this.bind(function() {
-                        if (this.opened()) {
+                        if (this.opened() && this.results && this.results.length > 1) {
                             this.search.focus();
                         }
                     }), 0);
@@ -2396,11 +2414,15 @@
                 }
             }));
             selection.on("mousedown touchstart", "abbr", this.bind(function(e) {
-                if (!this.isInterfaceEnabled()) return;
+                if (!this.isInterfaceEnabled()) {
+                    return;
+                }
                 this.clear();
                 killEventImmediately(e);
                 this.close();
-                this.selection.focus();
+                if (this.selection) {
+                    this.selection.focus();
+                }
             }));
             selection.on("mousedown touchstart", this.bind(function(e) {
                 reinsertElement(selection);
@@ -2440,7 +2462,7 @@
                 this.container.addClass("select2-container-active");
             }));
             this.initContainerWidth();
-            this.opts.element.addClass("select2-offscreen");
+            this.opts.element.hide();
             this.setPlaceholder();
         },
         clear: function(triggerChange) {
@@ -2481,7 +2503,7 @@
                         self.updateSelection(selected);
                         self.close();
                         self.setPlaceholder();
-                        self.nextSearchTerm = self.opts.nextSearchTerm(selected, self.search.val());
+                        self.lastSearchTerm = self.search.val();
                     }
                 });
             }
@@ -2578,7 +2600,7 @@
                 val: this.id(data),
                 choice: data
             });
-            this.nextSearchTerm = this.opts.nextSearchTerm(data, this.search.val());
+            this.lastSearchTerm = this.search.val();
             this.close();
             if ((!options || !options.noFocus) && this.opts.shouldFocusInput(this)) {
                 this.focusser.focus();
@@ -2706,7 +2728,7 @@
                 };
             } else if ("data" in opts) {
                 opts.initSelection = opts.initSelection || function(element, callback) {
-                    var ids = splitVal(element.val(), opts.separator);
+                    var ids = splitVal(element.val(), opts.separator, opts.transformVal);
                     var matches = [];
                     opts.query({
                         matcher: function(term, text, el) {
@@ -2768,6 +2790,9 @@
             });
             this.search.attr("id", "s2id_autogen" + nextUid());
             this.search.prev().text($("label[for='" + this.opts.element.attr("id") + "']").text()).attr("for", this.search.attr("id"));
+            this.opts.element.focus(this.bind(function() {
+                this.focus();
+            }));
             this.search.on("input paste", this.bind(function() {
                 if (this.search.attr("placeholder") && this.search.val().length == 0) return;
                 if (!this.isInterfaceEnabled()) return;
@@ -2896,7 +2921,7 @@
                 this.clearPlaceholder();
             }));
             this.initContainerWidth();
-            this.opts.element.addClass("select2-offscreen");
+            this.opts.element.hide();
             this.clearSearch();
         },
         enableInterface: function() {
@@ -2941,12 +2966,7 @@
             this.resizeSearch();
             this.parent.opening.apply(this, arguments);
             this.focusSearch();
-            if (this.search.val() === "") {
-                if (this.nextSearchTerm != undefined) {
-                    this.search.val(this.nextSearchTerm);
-                    this.search.select();
-                }
-            }
+            this.prefillNextSearchTerm();
             this.updateResults(true);
             if (this.opts.shouldFocusInput(this)) {
                 this.search.focus();
@@ -2965,18 +2985,15 @@
             return this.search.hasClass("select2-focused");
         },
         updateSelection: function(data) {
-            var ids = [], filtered = [], self = this;
+            var ids = {}, filtered = [], self = this;
             $(data).each(function() {
-                if (indexOf(self.id(this), ids) < 0) {
-                    ids.push(self.id(this));
+                if (!(self.id(this) in ids)) {
+                    ids[self.id(this)] = 0;
                     filtered.push(this);
                 }
             });
-            data = filtered;
             this.selection.find(".select2-search-choice").remove();
-            $(data).each(function() {
-                self.addSelectedChoice(this);
-            });
+            this.addSelectedChoice(filtered);
             self.postprocessResults();
         },
         tokenize: function() {
@@ -2999,7 +3016,7 @@
                 val: this.id(data),
                 choice: data
             });
-            this.nextSearchTerm = this.opts.nextSearchTerm(data, this.search.val());
+            this.lastSearchTerm = this.search.val();
             this.clearSearch();
             this.updateResults();
             if (this.select || !this.opts.closeOnSelect) this.postprocessResults(data, false, this.opts.closeOnSelect === true);
@@ -3013,10 +3030,8 @@
                     if (this.getMaximumSelectionSize() > 0 && this.val().length >= this.getMaximumSelectionSize()) {
                         this.updateResults(true);
                     } else {
-                        if (this.nextSearchTerm != undefined) {
-                            this.search.val(this.nextSearchTerm);
+                        if (this.prefillNextSearchTerm()) {
                             this.updateResults();
-                            this.search.select();
                         }
                     }
                     this.positionDropdown();
@@ -3035,11 +3050,18 @@
             this.focusSearch();
         },
         addSelectedChoice: function(data) {
+            var val = this.getVal(), self = this;
+            $(data).each(function() {
+                val.push(self.createChoice(this));
+            });
+            this.setVal(val);
+        },
+        createChoice: function(data) {
             var enableChoice = !data.locked, enabledItem = $("<li class='select2-search-choice'>" + "    <div></div>" + "    <a href='#' class='select2-search-choice-close' tabindex='-1'></a>" + "</li>"), disabledItem = $("<li class='select2-search-choice select2-locked'>" + "<div></div>" + "</li>");
-            var choice = enableChoice ? enabledItem : disabledItem, id = this.id(data), val = this.getVal(), formatted, cssClass;
+            var choice = enableChoice ? enabledItem : disabledItem, id = this.id(data), formatted, cssClass;
             formatted = this.opts.formatSelection(data, choice.find("div"), this.opts.escapeMarkup);
             if (formatted != undefined) {
-                choice.find("div").replaceWith("<div>" + formatted + "</div>");
+                choice.find("div").replaceWith($("<div></div>").html(formatted));
             }
             cssClass = this.opts.formatSelectionCssClass(data, choice.find("div"));
             if (cssClass != undefined) {
@@ -3061,8 +3083,7 @@
             }
             choice.data("select2-data", data);
             choice.insertBefore(this.searchContainer);
-            val.push(id);
-            this.setVal(val);
+            return id;
         },
         unselect: function(selected) {
             var val = this.getVal(), data, index;
@@ -3111,7 +3132,7 @@
                     choice.addClass("select2-selected");
                 }
             });
-            if (this.highlight() == -1 && noHighlightUpdate !== false) {
+            if (this.highlight() == -1 && noHighlightUpdate !== false && this.opts.closeOnSelect === true) {
                 self.highlight(0);
             }
             if (!this.opts.createSearchChoice && !choices.filter(".select2-result:not(.select2-selected)").length > 0) {
@@ -3150,17 +3171,19 @@
                 return val === null ? [] : val;
             } else {
                 val = this.opts.element.val();
-                return splitVal(val, this.opts.separator);
+                return splitVal(val, this.opts.separator, this.opts.transformVal);
             }
         },
         setVal: function(val) {
-            var unique;
             if (this.select) {
                 this.select.val(val);
             } else {
-                unique = [];
+                var unique = [], valMap = {};
                 $(val).each(function() {
-                    if (indexOf(this, unique) < 0) unique.push(this);
+                    if (!(this in valMap)) {
+                        unique.push(this);
+                        valMap[this] = 0;
+                    }
                 });
                 this.opts.element.val(unique.length === 0 ? "" : unique.join(this.opts.separator));
             }
@@ -3171,11 +3194,9 @@
                 for (var j = 0; j < old.length; j++) {
                     if (equal(this.opts.id(current[i]), this.opts.id(old[j]))) {
                         current.splice(i, 1);
-                        if (i > 0) {
-                            i--;
-                        }
+                        i--;
                         old.splice(j, 1);
-                        j--;
+                        break;
                     }
                 }
             }
@@ -3322,6 +3343,9 @@
             var markup = [];
             markMatch(this.text(result), query.term, markup, escapeMarkup);
             return markup.join("");
+        },
+        transformVal: function(val) {
+            return $.trim(val);
         },
         formatSelection: function(data, container, escapeMarkup) {
             return data ? escapeMarkup(this.text(data)) : undefined;
