@@ -1,4 +1,4 @@
-var jsFiles = ['src_select2/select2.js'];
+var jsFiles = ['src_select2/dist/js/select2.full.js'];
 
 module.exports = function(grunt) {
   grunt.initConfig({
@@ -11,9 +11,9 @@ module.exports = function(grunt) {
       '/*!',
       ' * bootstrap-select2.js <%= version %>',
       ' * https://github.com/InWayOpenSource/bootstrap-select2.git',
-      ' * Copyright 2014 InWay.pro and other contributors',
-      ' * original scripts developers Igor Vaynberg (for select2), t0m & fk (for select2-bootstrap-css)',
-      ' * Licensed under Apache License',
+      ' * Copyright 2014,2015 InWay.pro and other contributors',
+      ' * original scripts developers Igor Vaynberg (for select2), t0m & fk (for select2-bootstrap-theme)',
+      ' * Licensed under MIT license',
       ' */\n\n'
     ].join('\n'),
 
@@ -40,17 +40,28 @@ module.exports = function(grunt) {
       }
     },
 
+    subgrunt: {
+        s2grunt: {
+            options: {
+                npmInstall: true
+            },
+            projects: {
+                'src_select2': 'default'
+            }
+        }
+    },
+
     copy: {
       locales: {
         expand: true,
-        cwd: 'src_select2/',
-        src: 'select2_locale_*.js',
-        dest: '<%= buildDir %>/js/',
-        rename: function(dest, src) { return dest + 'bootstrap_' + src }
+        cwd: 'src_select2/dist/js/i18n',
+        src: '*.js',
+        dest: '<%= buildDir %>/js/select2-i18n',
+        //rename: function(dest, src) { return dest + 'bootstrap_' + src }
       },
       s2css: {
         expand: true,
-        cwd: 'src_select2/',
+        cwd: 'src_select2/dist/css',
         src: 'select2.css',
         dest: 'less/',
         options: {
@@ -61,7 +72,7 @@ module.exports = function(grunt) {
       },
       css: {
         expand: true,
-        cwd: 'src_bs2css/lib/',
+        cwd: 'src_bs2theme/src/',
         src: '*.less',
         dest: 'less/',
         options: {
@@ -70,6 +81,7 @@ module.exports = function(grunt) {
           }
         }
       },
+      /*
       images: {
         expand: true,
         cwd: 'src_select2/',
@@ -77,6 +89,7 @@ module.exports = function(grunt) {
         dest: '<%= buildDir %>/images/',
         rename: function(dest, src) { return dest + 'bootstrap_' + src }
       },
+      */
       less: {
         expand: true,
         cwd: 'src_bootstrap/less/',
@@ -121,8 +134,8 @@ module.exports = function(grunt) {
         cmd: 'test ! -e src_select2 && git clone --depth 1 https://raw.github.com/InWayOpenSource/select2.git src_select2',
         exitCode: [0,1]
       },
-      clone_bs2css: {
-        cmd: 'test ! -e src_bs2css && git clone --depth 1 https://raw.github.com/InWayOpenSource/bootstrap-select2-css.git src_bs2css',
+      clone_bs2theme: {
+        cmd: 'test ! -e src_bs2theme && git clone --depth 1 https://raw.github.com/InWayOpenSource/select2-bootstrap-theme.git src_bs2theme',
         exitCode: [0,1]
       },
       clone_b: {
@@ -132,8 +145,8 @@ module.exports = function(grunt) {
       update_s2: {
         cmd: 'cd src_select2 && git pull',
       },
-      update_bs2css: {
-        cmd: 'cd src_bs2css && git pull',
+      update_bs2theme: {
+        cmd: 'cd src_bs2theme && git pull',
       },
       update_b: {
         cmd: 'cd src_bootstrap && git pull',
@@ -142,7 +155,7 @@ module.exports = function(grunt) {
 
     clean: {
       less: ['less'],
-      src: ['src_bs2css', 'src_select2', 'src_bootstrap']
+      src: ['src_bs2theme', 'src_select2', 'src_bootstrap']
     },
   });
 
@@ -154,10 +167,11 @@ module.exports = function(grunt) {
   grunt.registerTask('js', ['uglify']);
   grunt.registerTask('css', ['less:compile', 'concat', 'less:minify']);
   grunt.registerTask('banner', 'usebanner');
-  grunt.registerTask('clone', ['exec:clone_s2', 'exec:clone_bs2css', 'exec:clone_b']);
-  grunt.registerTask('update', ['exec:update_s2', 'exec:update_bs2css', 'exec:update_b']);
-  
-  grunt.registerTask('build', ['clone', 'update', 'copy', 'js', 'css']);
+  grunt.registerTask('clone', ['exec:clone_s2', 'exec:clone_bs2theme', 'exec:clone_b']);
+  grunt.registerTask('update', ['exec:update_s2', 'exec:update_bs2theme', 'exec:update_b']);
+  grunt.registerTask('build_s2', ['subgrunt:s2grunt']);
+
+  grunt.registerTask('build', ['clone', 'update', 'build_s2', 'copy', 'js', 'css']);
 
   // load tasks
   // ----------
@@ -169,4 +183,5 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-copy');
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-less');
+  grunt.loadNpmTasks('grunt-subgrunt');
 };
