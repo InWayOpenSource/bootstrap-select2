@@ -8,12 +8,9 @@ module.exports = function(grunt) {
     buildDir: 'dist',
 
     banner: [
-      '/*!',
-      ' * bootstrap-select2.js <%= version %>',
-      ' * https://github.com/InWayOpenSource/bootstrap-select2.git',
-      ' * Copyright 2014,2015 InWay.pro and other contributors',
-      ' * original scripts developers Igor Vaynberg (for select2), t0m & fk (for select2-bootstrap-theme)',
-      ' * Licensed under MIT license',
+      '/*! bootstrap-select2.js <%= version %> | https://github.com/InWayOpenSource/bootstrap-select2/blob/master/LICENSE',
+      ' * Merged version: Copyright 2014,2015 InWay.pro and other contributors',
+      ' * Original source developed by Igor Vaynberg (for select2), t0m & fk (for select2-bootstrap-theme)',
       ' */\n\n'
     ].join('\n'),
 
