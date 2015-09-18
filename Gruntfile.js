@@ -14,6 +14,14 @@ module.exports = function(grunt) {
       ' */\n\n'
     ].join('\n'),
 
+    bump: {
+      options: {
+        files: ['package.json'],
+        push: false,
+        createTag: false,
+      }
+    },
+
     uglify: {
       options: {
         banner: '<%= banner %>',
@@ -49,35 +57,35 @@ module.exports = function(grunt) {
     },
 
     copy: {
-      locales: {
-        expand: true,
-        cwd: 'src_select2/dist/js/i18n',
-        src: '*.js',
-        dest: '<%= buildDir %>/js/select2-i18n',
-        //rename: function(dest, src) { return dest + 'bootstrap_' + src }
+      build: {
+        files: [
+          { expand: true, cwd: 'src_select2/dist/js/i18n', src: '*.js', dest: '<%= buildDir %>/js/select2-i18n',
+            //rename: function(dest, src) { return dest + 'bootstrap_' + src }
+          },
+          { expand: true, cwd: 'src_select2/dist/css', src: 'select2.css', dest: 'less/', options: {
+              process: function(content, src) {
+                return content.replace(/url\('(.*?)'\)/g, "url('../images/bootstrap_$1')");
+              }
+            }
+          },
+          { expand: true, cwd: 'src_bs2theme/src/', src: '*.less', dest: 'less/', options: {
+              process: function(content, src) {
+                return content.replace(new RegExp('\.\.\/components\/bootstrap/less(.*?)(".*)', 'g'), "./bootstrap$1.less$2");
+              }
+            }
+          },
+          { expand: true, cwd: 'src_bootstrap/less/', src: '**/*.less', dest: 'bower_components/bootstrap/less/' }
+        ]
       },
-      s2css: {
-        expand: true,
-        cwd: 'src_select2/dist/css',
-        src: 'select2.css',
-        dest: 'less/',
-        options: {
-          process: function(content, src) {
-            return content.replace(/url\('(.*?)'\)/g, "url('../images/bootstrap_$1')");
-          }
-        }
-      },
-      css: {
-        expand: true,
-        cwd: 'src_bs2theme/src/',
-        src: '*.less',
-        dest: 'less/',
-        options: {
-          process: function(content, src) {
-            return content.replace(new RegExp('\.\.\/components\/bootstrap/less(.*?)(".*)', 'g'), "./bootstrap$1.less$2");
-          }
-        }
-      },
+      docs: {
+        files: [
+          { expand: true, cwd: 'src_bootstrap/dist/css', src: '*', dest: 'docs/css' },
+          { expand: true, cwd: 'src_bootstrap/dist/js', src: '*', dest: 'docs/js' },
+          { expand: true, cwd: 'src_bootstrap/fonts', src: '*', dest: 'docs/fonts' },
+          { expand: true, cwd: 'dist/css', src: '*', dest: 'docs/css' },
+          { expand: true, cwd: 'dist/js', src: '**/*', dest: 'docs/js' }
+        ]
+      }
       /*
       images: {
         expand: true,
@@ -87,18 +95,12 @@ module.exports = function(grunt) {
         rename: function(dest, src) { return dest + 'bootstrap_' + src }
       },
       */
-      less: {
-        expand: true,
-        cwd: 'src_bootstrap/less/',
-        src: '**/*.less',
-        dest: 'bower_components/bootstrap/less/'
-      }
     },
 
     less: {
       compile: {
         options: {
-          strictMath: true
+          strictMath: false
         },
         files: {
           'less/<%= pkg.name %>.css': 'less/build.less',
@@ -112,6 +114,17 @@ module.exports = function(grunt) {
         files: {
           '<%= buildDir %>/css/<%= pkg.name %>.min.css': '<%= buildDir %>/css/<%= pkg.name %>.css',
         }
+      }
+    },
+
+    sass: {
+      options: {
+        style: 'expanded',
+        sourcemap: 'none',
+        precision: 9
+      },
+      dist: {
+        
       }
     },
 
@@ -150,6 +163,31 @@ module.exports = function(grunt) {
       }
     },
 
+    jekyll: {
+      options: {
+        src: 'docs',
+        dest: 'docs/_site',
+        sourcemaps: false
+      },
+      build: {
+        d: null
+      },
+      serve: {
+        options: {
+          serve: true,
+          watch: true
+        }
+      }
+    },
+
+    watch: {
+      files: 'less/*.less',
+      tasks: ['css', 'copy:docs'],
+      options: {
+        livereload: true
+      }
+    },
+
     clean: {
       less: ['less'],
       src: ['src_bs2theme', 'src_select2', 'src_bootstrap']
@@ -168,7 +206,9 @@ module.exports = function(grunt) {
   grunt.registerTask('update', ['exec:update_s2', 'exec:update_bs2theme', 'exec:update_b']);
   grunt.registerTask('build_s2', ['subgrunt:s2grunt']);
 
-  grunt.registerTask('build', ['clone', 'update', 'build_s2', 'copy', 'js', 'css']);
+  grunt.registerTask('build', ['clone', 'update', 'build_s2', 'copy:build', 'js', 'css', 'jekyll:build']);
+
+  grunt.registerTask('serve', ['copy:docs', 'jekyll:serve']);
 
   // load tasks
   // ----------
@@ -180,5 +220,8 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-copy');
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-less');
+  grunt.loadNpmTasks('grunt-contrib-watch');
   grunt.loadNpmTasks('grunt-subgrunt');
+  grunt.loadNpmTasks('grunt-jekyll');
+  grunt.loadNpmTasks('grunt-bump');
 };
