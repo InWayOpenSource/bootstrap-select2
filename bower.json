@@ -1,0 +1,25 @@
+{
+  "name": "bootstrap-select2",
+  "version": "0.0.4",
+  "homepage": "https://github.com/inway/bootstrap-select2",
+  "authors": [
+    "Sebastian Podjasek <sebastian@podjasek.pl>"
+  ],
+  "description": "Utility project to merge original select2 code & bootstrap 3 theme into single file",
+  "main": [
+    "dist/js/bootstrap-select2.js",
+    "dist/css/bootstrap-select2.css"
+  ],
+  "moduleType": "globals",
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "docs",
+    "src*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
